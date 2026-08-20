@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafio dos Cadeados - Materiais Aplicados na Construção</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+        }
+
+        /* Animação de Erro (Shake) */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        .animate-shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        /* Animação de Pulsar Acerto */
+        @keyframes pulse-success {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            50% { transform: scale(1.02); box-shadow: 0 0 0 20px rgba(34, 197, 94, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .animate-success {
+            animation: pulse-success 0.6s ease-in-out;
+        }
+
+        /* Animação de Desbloqueio do Cadeado */
+        @keyframes unlock {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(-15deg) scale(1.2); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        .animate-unlock {
+            animation: unlock 0.6s ease-in-out;
+        }
+
+        /* Transições suaves */
+        .transition-all-custom {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="text-slate-100 flex flex-col justify-between min-h-screen p-4 md:p-6">
+
+    <!-- Cabeçalho Principal -->
+    <header class="max-w-4xl mx-auto w-full mb-6">
+        <div class="bg-slate-800/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-4 md:p-6 shadow-2xl flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-2">
+                    <i class="fa-solid fa-helmet-safety"></i> Materiais Aplicados na Construção
+                </span>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Desafio dos Cadeados</h1>
+            </div>
+
+            <!-- Painel de Vidas -->
+            <div class="flex items-center gap-3 bg-slate-900/80 px-5 py-2.5 rounded-xl border border-slate-700">
+                <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">Vidas:</span>
+                <div id="lives-container" class="flex gap-2 text-2xl">
+                    <i class="fa-solid fa-heart text-rose-500 transition-transform duration-300"></i>
+                    <i class="fa-solid fa-heart text-rose-500 transition-transform duration-300"></i>
+                    <i class="fa-solid fa-heart text-rose-500 transition-transform duration-300"></i>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Progresso dos Cadeados -->
+    <section class="max-w-4xl mx-auto w-full mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="locks-summary-container">
+            <!-- Renderizado Dinamicamente via JS -->
+        </div>
+    </section>
+
+    <!-- ÁREA PRINCIPAL DO JOGO -->
+    <main class="max-w-4xl mx-auto w-full flex-grow flex flex-col justify-center mb-8">
+        <div id="game-card" class="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 md:p-8 shadow-2xl transition-all-custom relative overflow-hidden">
+            
+            <!-- Barra Superior da Pergunta -->
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-700/60">
+                <div class="flex items-center gap-3">
+                    <span id="current-lock-badge" class="px-3 py-1 bg-amber-500 text-slate-900 font-bold rounded-lg text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-lock"></i> Cadeado 1
+                    </span>
+                    <span id="question-number-badge" class="text-sm font-medium text-slate-400">
+                        Pergunta 1 de 3
+                    </span>
+                </div>
+                <div class="flex items-center gap-1" id="combination-tracker">
+                    <!-- Mostra as letras desbloqueadas da senha atual -->
+                </div>
+            </div>
+
+            <!-- Texto da Pergunta -->
+            <div class="mb-8">
+                <h2 id="question-text" class="text-lg md:text-xl font-semibold text-slate-100 leading-relaxed">
+                    Carregando pergunta...
+                </h2>
+            </div>
+
+            <!-- Opções de Resposta -->
+            <div id="options-container" class="grid grid-cols-1 gap-3">
+                <!-- Opções injetadas via JavaScript -->
+            </div>
+
+            <!-- Feedback Overlay / Alerta -->
+            <div id="feedback-message" class="hidden mt-6 p-4 rounded-xl text-center font-bold transition-all"></div>
+        </div>
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="max-w-4xl mx-auto w-full text-center text-slate-500 text-sm py-4">
+        Engenharia Civil • Chapecó/SC • Mini jogo interativo de fixação
+    </footer>
+
+    <!-- MODAL DE GAME OVER -->
+    <div id="modal-gameover" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-slate-900 border border-rose-500/30 p-8 rounded-3xl max-w-md w-full text-center shadow-2xl animate-shake">
+            <div class="w-20 h-20 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-full flex items-center justify-center mx-auto mb-5 text-4xl">
+                <i class="fa-solid fa-skull-crossbones"></i>
+            </div>
+            <h3 class="text-2xl font-extrabold text-white mb-2">Suas vidas acabaram!</h3>
+            <p class="text-slate-400 text-sm mb-6">
+                Você perdeu todas as vidas e precisa reiniciar a jornada a partir do **Cadeado 1**.
+            </p>
+            <button onclick="resetToBeginning()" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate-left"></i> Reiniciar do Cadeado 1
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL DE VITÓRIA FINAL -->
+    <div id="modal-victory" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-slate-900 border border-emerald-500/30 p-8 rounded-3xl max-w-lg w-full text-center shadow-2xl">
+            <div class="w-24 h-24 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-5 text-5xl">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h3 class="text-3xl font-extrabold text-white mb-2">Parabéns, Engenheiro(a)!</h3>
+            <p class="text-slate-300 text-base mb-6">
+                Você abriu todos os <span class="text-emerald-400 font-bold">3 Cadeados</span> e demonstrou excelente domínio das propriedades dos materiais, aglomerantes e agregados!
+            </p>
+            
+            <div class="bg-slate-800/80 rounded-2xl p-4 mb-6 border border-slate-700/80 text-left space-y-2 text-sm">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400">Cadeado 1 (Propriedades):</span>
+                    <span class="font-mono font-bold text-amber-400">A - C - C</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400">Cadeado 2 (Aglomerantes):</span>
+                    <span class="font-mono font-bold text-amber-400">C - B - D</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400">Cadeado 3 (Agregados):</span>
+                    <span class="font-mono font-bold text-amber-400">B - D - D</span>
+                </div>
+            </div>
+
+            <button onclick="resetGame()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 text-lg">
+                <i class="fa-solid fa-play"></i> Jogar Novamente
+            </button>
+        </div>
+    </div>
+
+    <!-- EFEITOS SONOROS (WEB AUDIO API) -->
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.2); // A5
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.25);
+            } else if (type === 'unlock') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(554.37, audioCtx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'gameover') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(60, audioCtx.currentTime + 0.6);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.6);
+            }
+        }
+    </script>
+
+    <!-- LÓGICA PRINCIPAL DO JOGO -->
+    <script>
+        // Estrutura de dados com perguntas e senhas
+        const gameData = [
+            {
+                id: 1,
+                title: "PROPRIEDADES DOS MATERIAIS",
+                password: ["a", "c", "c"],
+                questions: [
+                    {
+                        title: "Deformação permanente dos materiais:",
+                        options: [
+                            { letter: "a", text: "Deformação plástica." },
+                            { letter: "b", text: "Deformação elástica." },
+                            { letter: "c", text: "Deformação infinita." },
+                            { letter: "d", text: "Deformação localizada." }
+                        ],
+                        correct: "a"
+                    },
+                    {
+                        title: "Supondo dois materiais recentemente criados para aplicação na engenharia civil. Sabe-se que o módulo de elasticidade do material 1 é muito superior ao do material 2. Neste sentido, é correto afirmar que:",
+                        options: [
+                            { letter: "a", text: "A resistência do material 1 é maior." },
+                            { letter: "b", text: "A carga de ruptura do material 2 é maior." },
+                            { letter: "c", text: "No trecho elástico, para uma mesma carga, a deformação do material 1 é menor que a do material 2." },
+                            { letter: "d", text: "No trecho elástico, para uma mesma carga, a deformação do material 2 é menor que a do material 1." }
+                        ],
+                        correct: "c"
+                    },
+                    {
+                        title: "O módulo de resiliência de um material é definido como:",
+                        options: [
+                            { letter: "a", text: "Inclinação da reta no trecho elástico." },
+                            { letter: "b", text: "Área abaixo da curva tensão x deformação no trecho plástico." },
+                            { letter: "c", text: "Área abaixo da curva tensão x deformação no trecho elástico." },
+                            { letter: "d", text: "Área abaixo da curva tensão x deformação do início até a ruptura." }
+                        ],
+                        correct: "c"
+                    }
+                ]
+            },
+            {
+                id: 2,
+                title: "AGLOMERANTES",
+                password: ["c", "b", "d"],
+                questions: [
+                    {
+                        title: "Um tipo de cimento amplamente comercializado é o cimento CP IV 32 RS. Assinale a alternativa que apresenta, respectivamente: adição deste tipo de cimento, significado do 32 no nome do cimento e significado do RS no nome do cimento.",
+                        options: [
+                            { letter: "a", text: "Escória, resistência aos 28 dias e resistência a sulfatos." },
+                            { letter: "b", text: "Pozolana, resistência aos 28 dias e resistência superior." },
+                            { letter: "c", text: "Pozolana, resistência aos 28 dias e resistência a sulfatos." },
+                            { letter: "d", text: "Pozolana, resistência aos 32 dias e resistência a sulfatos." }
+                        ],
+                        correct: "c"
+                    },
+                    {
+                        title: "Deseja-se fabricar um bloco de coroamento de concreto de elevado volume para uma obra no centro de Chapecó. Durante consultas às centrais dosadoras de concreto da região, foram verificados os seguintes tipos de cimento disponíveis: CP II-F 40, CP III 40, CP V ARI e CP I-S 40. Assinale a melhor alternativa para este problema:",
+                        options: [
+                            { letter: "a", text: "CP II F 40." },
+                            { letter: "b", text: "CP III 40." },
+                            { letter: "c", text: "CP V ARI." },
+                            { letter: "d", text: "CP I-S 40." }
+                        ],
+                        correct: "b"
+                    },
+                    {
+                        title: "Deseja-se fazer um reforço estrutural em um pilar, aumentando sua seção transversal através da utilização de um graute de resistência adequada. Qual adição o cimento utilizado neste processo deve conter, para reduzir o espaço vazio da zona de transição?",
+                        options: [
+                            { letter: "a", text: "Cimento sem adição ou praticamente sem." },
+                            { letter: "b", text: "Filler calcário." },
+                            { letter: "c", text: "Escória de alto forno." },
+                            { letter: "d", text: "Pozolana." }
+                        ],
+                        correct: "d"
+                    }
+                ]
+            },
+            {
+                id: 3,
+                title: "AGREGADOS",
+                password: ["b", "d", "d"],
+                questions: [
+                    {
+                        title: "O ensaio de granulometria fornece como resultados: a curva granulométrica, a Dimensão Máxima Característica (DMC) e o módulo de finura (MF). Supondo que esteja avaliando uma areia para aplicação em concreto, é correto afirmar que as condições de MF que apresentam, respectivamente, melhores resultados para: custo, resistência e trabalhabilidade, são:",
+                        options: [
+                            { letter: "a", text: "MF maior, MF maior, MF maior." },
+                            { letter: "b", text: "MF maior, MF maior, MF menor." },
+                            { letter: "c", text: "MF menor, MF maior, MF menor." },
+                            { letter: "d", text: "MF menor, MF maior, MF maior." }
+                        ],
+                        correct: "b"
+                    },
+                    {
+                        title: "A respeito do formato do agregado e da forma da curva granulométrica: assinale a alternativa que apresenta o formato do agregado e forma da curva que leve aos melhores resultados de RESISTÊNCIA.",
+                        options: [
+                            { letter: "a", text: "Formato redondo e curva contínua." },
+                            { letter: "b", text: "Formato redondo e curva descontínua." },
+                            { letter: "c", text: "Formato cúbico e curva uniforme." },
+                            { letter: "d", text: "Formato cúbico e curva descontínua." }
+                        ],
+                        correct: "d"
+                    },
+                    {
+                        title: "Propriedade do agregado utilizado para conversão do traço de massa para volume:",
+                        options: [
+                            { letter: "a", text: "Granulometria." },
+                            { letter: "b", text: "DMC e MF." },
+                            { letter: "c", text: "Massa específica." },
+                            { letter: "d", text: "Massa unitária." }
+                        ],
+                        correct: "d"
+                    }
+                ]
+            }
+        ];
+
+        // Estado do Jogo
+        let lives = 3;
+        let currentLockIndex = 0;
+        let currentQuestionIndex = 0;
+        let lockProgress = [
+            ['?', '?', '?'],
+            ['?', '?', '?'],
+            ['?', '?', '?']
+        ];
+        let unlockedLocks = [false, false, false];
+        let isProcessingAnswer = false;
+
+        // Inicialização
+        document.addEventListener("DOMContentLoaded", () => {
+            renderLives();
+            renderLocksSummary();
+            renderQuestion();
+        });
+
+        // Renderiza Corações de Vida
+        function renderLives() {
+            const container = document.getElementById("lives-container");
+            container.innerHTML = "";
+            for (let i = 0; i < 3; i++) {
+                const heart = document.createElement("i");
+                if (i < lives) {
+                    heart.className = "fa-solid fa-heart text-rose-500 scale-100 transition-all duration-300";
+                } else {
+                    heart.className = "fa-solid fa-heart text-slate-700 scale-90 transition-all duration-300";
+                }
+                container.appendChild(heart);
+            }
+        }
+
+        // Renderiza os Cards de Progresso dos Cadeados
+        function renderLocksSummary() {
+            const container = document.getElementById("locks-summary-container");
+            container.innerHTML = "";
+
+            gameData.forEach((lock, index) => {
+                const isCurrent = index === currentLockIndex;
+                const isUnlocked = unlockedLocks[index];
+
+                let cardBg = "bg-slate-800/40 border-slate-700/50 opacity-60";
+                let statusBadge = `<span class="text-xs text-slate-500 font-semibold flex items-center gap-1"><i class="fa-solid fa-lock"></i> Bloqueado</span>`;
+                let iconColor = "text-slate-500";
+
+                if (isUnlocked) {
+                    cardBg = "bg-emerald-950/30 border-emerald-500/40 shadow-lg shadow-emerald-950/20";
+                    statusBadge = `<span class="text-xs text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-lock-open"></i> Desbloqueado</span>`;
+                    iconColor = "text-emerald-400";
+                } else if (isCurrent) {
+                    cardBg = "bg-slate-800 border-amber-500/60 shadow-xl shadow-amber-500/10 opacity-100 ring-1 ring-amber-500/30";
+                    statusBadge = `<span class="text-xs text-amber-400 font-bold flex items-center gap-1"><i class="fa-solid fa-spinner fa-spin"></i> Em Andamento</span>`;
+                    iconColor = "text-amber-400";
+                }
+
+                // Visual das letras descobertas
+                const codeSlotHTML = lockProgress[index].map((letter) => {
+                    const isDiscovered = letter !== '?';
+                    return `<span class="w-8 h-8 rounded-lg ${isDiscovered ? 'bg-amber-500/20 text-amber-300 border-amber-500/50' : 'bg-slate-900 text-slate-600 border-slate-700'} border flex items-center justify-center font-mono font-bold uppercase text-sm">${letter}</span>`;
+                }).join('');
+
+                const cardHTML = `
+                    <div class="${cardBg} border rounded-2xl p-4 transition-all duration-300 flex flex-col justify-between">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <p class="text-xs font-bold text-slate-400 tracking-wider">CADEADO ${lock.id}</p>
+                                <h3 class="text-sm font-bold text-white">${lock.title}</h3>
+                            </div>
+                            <div class="text-xl ${iconColor}">
+                                <i class="fa-solid ${isUnlocked ? 'fa-unlock' : 'fa-lock'}"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between pt-2 border-t border-slate-700/40">
+                            ${statusBadge}
+                            <div class="flex gap-1.5">
+                                ${codeSlotHTML}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHTML;
+            });
+        }
+
+        // Renderiza a Pergunta Atual
+        function renderQuestion() {
+            const lock = gameData[currentLockIndex];
+            const q = lock.questions[currentQuestionIndex];
+
+            // Atualiza Header do Card
+            document.getElementById("current-lock-badge").innerHTML = `<i class="fa-solid fa-lock"></i> Cadeado ${lock.id}: ${lock.title}`;
+            document.getElementById("question-number-badge").innerText = `Pergunta ${currentQuestionIndex + 1} de 3`;
+            document.getElementById("question-text").innerText = `${currentQuestionIndex + 1}. ${q.title}`;
+
+            // Mostra senha acumulada no card principal
+            const trackerContainer = document.getElementById("combination-tracker");
+            trackerContainer.innerHTML = lockProgress[currentLockIndex].map((l) => {
+                const filled = l !== '?';
+                return `<span class="w-7 h-7 rounded-md ${filled ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-slate-900 border-slate-700 text-slate-600'} border flex items-center justify-center font-mono text-xs font-bold uppercase">${l}</span>`;
+            }).join('');
+
+            // Renderiza opções de resposta
+            const optionsContainer = document.getElementById("options-container");
+            optionsContainer.innerHTML = "";
+
+            q.options.forEach((opt) => {
+                const btn = document.createElement("button");
+                btn.className = "w-full text-left bg-slate-900/60 hover:bg-slate-700/60 border border-slate-700/80 hover:border-amber-500/50 p-4 rounded-xl transition-all duration-200 flex items-start gap-3 group text-slate-200";
+                btn.onclick = () => handleAnswer(opt.letter, btn);
+
+                btn.innerHTML = `
+                    <span class="w-7 h-7 rounded-lg bg-slate-800 group-hover:bg-amber-500 group-hover:text-slate-950 font-mono font-bold text-slate-300 flex items-center justify-center text-sm border border-slate-700 group-hover:border-amber-400 transition-colors flex-shrink-0">
+                        ${opt.letter.toUpperCase()}
+                    </span>
+                    <span class="text-sm md:text-base leading-snug pt-0.5">${opt.text}</span>
+                `;
+                optionsContainer.appendChild(btn);
+            });
+
+            // Limpa mensagens
+            const feedbackMsg = document.getElementById("feedback-message");
+            feedbackMsg.className = "hidden mt-6 p-4 rounded-xl text-center font-bold transition-all";
+        }
+
+        // Processa a Resposta Escolhida
+        function handleAnswer(selectedLetter, btnElement) {
+            if (isProcessingAnswer) return;
+            isProcessingAnswer = true;
+
+            const card = document.getElementById("game-card");
+            const lock = gameData[currentLockIndex];
+            const q = lock.questions[currentQuestionIndex];
+
+            if (selectedLetter === q.correct) {
+                // ACERTOU!
+                playSound('correct');
+                btnElement.classList.remove("bg-slate-900/60", "border-slate-700/80");
+                btnElement.classList.add("bg-emerald-900/40", "border-emerald-500", "text-emerald-200");
+                card.classList.add("animate-success");
+
+                // Registra a letra no progresso do cadeado
+                lockProgress[currentLockIndex][currentQuestionIndex] = selectedLetter.toLowerCase();
+                renderLocksSummary();
+
+                setTimeout(() => {
+                    card.classList.remove("animate-success");
+
+                    // Verifica se concluiu as 3 perguntas do cadeado atual
+                    if (currentQuestionIndex < 2) {
+                        currentQuestionIndex++;
+                        renderQuestion();
+                        isProcessingAnswer = false;
+                    } else {
+                        // Cadeado completo!
+                        unlockCurrentLock();
+                    }
+                }, 800);
+
+            } else {
+                // ERROU!
+                playSound('error');
+                btnElement.classList.remove("bg-slate-900/60", "border-slate-700/80");
+                btnElement.classList.add("bg-rose-900/40", "border-rose-500", "text-rose-200");
+                card.classList.add("animate-shake");
+
+                lives--;
+                renderLives();
+
+                setTimeout(() => {
+                    card.classList.remove("animate-shake");
+
+                    if (lives > 0) {
+                        // Perdeu vida: reseta para pergunta 1 do mesmo cadeado
+                        showFeedback("Resposta Incorreta! Você perdeu 1 vida e voltou para a Pergunta 1 deste cadeado.", "bg-rose-500/10 border border-rose-500/30 text-rose-400");
+                        lockProgress[currentLockIndex] = ['?', '?', '?']; // Reseta progresso das letras do cadeado
+                        currentQuestionIndex = 0;
+                        renderLocksSummary();
+
+                        setTimeout(() => {
+                            renderQuestion();
+                            isProcessingAnswer = false;
+                        }, 1600);
+
+                    } else {
+                        // Acabaram as vidas: Game Over total
+                        playSound('gameover');
+                        document.getElementById("modal-gameover").classList.remove("hidden");
+                    }
+                }, 600);
+            }
+        }
+
+        // Libera o Cadeado Atual
+        function unlockCurrentLock() {
+            playSound('unlock');
+            unlockedLocks[currentLockIndex] = true;
+            renderLocksSummary();
+
+            if (currentLockIndex < 2) {
+                // Avança para o próximo cadeado
+                showFeedback(`🔓 CADEADO ${currentLockIndex + 1} DESTRAVADO! Senha: ${lockProgress[currentLockIndex].join('').toUpperCase()}`, "bg-emerald-500/20 border border-emerald-500/40 text-emerald-300");
+
+                setTimeout(() => {
+                    currentLockIndex++;
+                    currentQuestionIndex = 0;
+                    renderQuestion();
+                    renderLocksSummary();
+                    isProcessingAnswer = false;
+                }, 1800);
+            } else {
+                // Fim de Jogo: Vitória!
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+                document.getElementById("modal-victory").classList.remove("hidden");
+            }
+        }
+
+        // Mostra caixa de mensagem
+        function showFeedback(text, bgClasses) {
+            const msg = document.getElementById("feedback-message");
+            msg.className = `mt-6 p-4 rounded-xl text-center font-bold transition-all ${bgClasses}`;
+            msg.innerText = text;
+            msg.classList.remove("hidden");
+        }
+
+        // Reseta tudo para o início (Perdeu 3 vidas)
+        function resetToBeginning() {
+            document.getElementById("modal-gameover").classList.add("hidden");
+            lives = 3;
+            currentLockIndex = 0;
+            currentQuestionIndex = 0;
+            lockProgress = [
+                ['?', '?', '?'],
+                ['?', '?', '?'],
+                ['?', '?', '?']
+            ];
+            unlockedLocks = [false, false, false];
+            isProcessingAnswer = false;
+
+            renderLives();
+            renderLocksSummary();
+            renderQuestion();
+        }
+
+        // Reseta o jogo completo (Aós Vitória)
+        function resetGame() {
+            document.getElementById("modal-victory").classList.add("hidden");
+            resetToBeginning();
+        }
+    </script>
+</body>
+</html>
